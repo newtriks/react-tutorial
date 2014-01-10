@@ -16,12 +16,12 @@ var Comment = React.createClass({
 
 var CommentBox = React.createClass({
   loadCommentsFromServer: function() {
-    $.ajax({
-      url: this.props.url,
-      success: function(data) {
-        this.setState({data: data});
-      }.bind(this)
-    });
+    superagent.get(this.props.url).end(function (res) {
+        if(!res.ok) return;
+        this.setState({
+            data: res.body
+        });
+    }.bind(this));
   },
   handleCommentSubmit: function(comment) {
     var comments = this.state.data;
