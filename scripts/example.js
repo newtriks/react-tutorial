@@ -1,6 +1,7 @@
 /** @jsx React.DOM */
 
 var converter = new Showdown.converter();
+var ref = new Firebase('https://[replace-with-your-Frebase]/comments');
 
 var Comment = React.createClass({
   render: function() {
@@ -15,33 +16,20 @@ var Comment = React.createClass({
 });
 
 var CommentBox = React.createClass({
-  loadCommentsFromServer: function() {
-    superagent.get(this.props.url).end(function (res) {
-        if(!res.ok) return;
-        this.setState({
-            data: res.body
-        });
-    }.bind(this));
-  },
   handleCommentSubmit: function(comment) {
-    var comments = this.state.data;
-    comments.push(comment);
-    this.setState({data: comments});
-    $.ajax({
-      url: this.props.url,
-      type: 'POST',
-      data: comment,
-      success: function(data) {
-        this.setState({data: data});
-      }.bind(this)
-    });
+    ref.push(comment);
   },
   getInitialState: function() {
-    return {data: []};
+    return {data: {}};
   },
   componentWillMount: function() {
-    this.loadCommentsFromServer();
-    setInterval(this.loadCommentsFromServer, this.props.pollInterval);
+    ref.on('child_added', function (newSnap, oldSnap) {
+        if(newSnap.val()) {
+            this.setState({
+                data: newSnap.val()
+            });
+        }
+      }, this);
   },
   render: function() {
     return (
@@ -55,16 +43,21 @@ var CommentBox = React.createClass({
 });
 
 var CommentList = React.createClass({
+  getInitialState: function() {
+    return {data: []};
+  },
   render: function() {
-    var commentNodes = this.props.data.map(function (comment, index) {
-      return <Comment key={index} author={comment.author}>{comment.text}</Comment>;
-    });
-    return <div className="commentList">{commentNodes}</div>;
+    var comment = this.props.data;
+    var index = this.state.data.length;
+    if(comment.author && comment.text) {
+        this.state.data.push(<Comment key={index} author={comment.author}>{comment.text}</Comment>);
+    }
+    return <div className="commentList">{this.state.data}</div>;
   }
 });
 
 var CommentForm = React.createClass({
-  handleSubmit: function() {
+  handleSubmit: function(e) {
     var author = this.refs.author.getDOMNode().value.trim();
     var text = this.refs.text.getDOMNode().value.trim();
     this.props.onCommentSubmit({author: author, text: text});
@@ -84,6 +77,6 @@ var CommentForm = React.createClass({
 });
 
 React.renderComponent(
-  <CommentBox url="/comments.json" pollInterval={2000} />,
+  <CommentBox />,
   document.getElementById('container')
 );
